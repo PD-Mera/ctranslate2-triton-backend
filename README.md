@@ -2,6 +2,8 @@
 
 In this project, I used docker Triton 22.12, for now, you can switch between translate models and whisper models by rename file to `ctranslate2.cc`
 
+## Environments and Deployments
+
 ``` bash
 ## Start docker
 docker pull nvcr.io/nvidia/tritonserver:22.12
@@ -62,6 +64,13 @@ export LD_PRELOAD=/opt/intel/compilers_and_libraries_2020.0.166/linux/compiler/l
 tritonserver --backend-directory $BACKEND_INSTALL_DIR/backends --model-repository $MODEL_DIR
 ```
 
+## Inference
+
+You can run `./ctranslate2_triton_backend/examples/whisper_client.py` to inference
+
+``` bash
+python ./ctranslate2_triton_backend/examples/whisper_client.py
+```
 
 # (OLD README) CTranslate2 Backend for Triton Inference Server
 
