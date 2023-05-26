@@ -1,4 +1,69 @@
-# CTranslate2 Backend for Triton Inference Server
+# CTranslate2 Backend for Triton Inference Server (Support Whisper) 
+
+In this project, I used docker Triton 22.12, for now, you can switch between translate models and whisper models by rename file to `ctranslate2.cc`
+
+``` bash
+## Start docker
+docker pull nvcr.io/nvidia/tritonserver:22.12
+docker run --gpus '"device=0,1"' -it --name dongtrinh.ctranslate -p8187:8000 -p8188:8001 -p8189:8002 -v/home/data2/dongtrinh/InternImage-Utility:/InternImage-Utility/ --shm-size=16G nvcr.io/nvidia/tritonserver:22.12-py3
+
+## Install cmake
+wget https://github.com/Kitware/CMake/releases/download/v3.26.0/cmake-3.26.0-linux-x86_64.tar.gz
+tar -xzvf cmake-3.26.0-linux-x86_64.tar.gz
+ln -sf $(pwd)/cmake-3.20.0-linux-x86_64/bin/* /usr/bin/
+
+## Install intel-mkl
+wget -O - https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2019.PUB 2> /dev/null | apt-key add -
+sh -c 'echo deb https://apt.repos.intel.com/mkl all main > /etc/apt/sources.list.d/intel-mkl.list'
+apt-get update
+apt-get install -y intel-mkl-64bit-2020.0-088
+rm -rf /var/lib/apt/lists/*
+
+## Install Ctranslate2
+git clone --recursive https://github.com/OpenNMT/CTranslate2.git
+cd Ctranslate2
+mkdir build && cd build
+cmake .. -DWITH_CUDA=ON
+make -j4
+make install
+cd ..
+
+## Install pybind11
+cd python
+pip install -r install_requirements.txt
+python3 setup.py bdist_wheel
+pip install dist/*.whl
+cd ..
+
+## Install rapidjson
+apt update
+apt install rapidjson-dev
+
+## Install Ctranslate2-triton-backend
+git clone https://github.com/speechmatics/ctranslate2_triton_backend.git
+cd ctranslate2_triton_backend
+
+## Choose model type
+# cp ctranslate2_src/ctranslate2_base.cc src/ctranslate2.cc 
+cp ctranslate2_src/ctranslate2_whisper.cc src/ctranslate2.cc 
+mkdir build && cd build
+export BACKEND_INSTALL_DIR=$(pwd)/install
+cmake .. -DCMAKE_BUILD_TYPE=Release -DTRITON_ENABLE_GPU=1 -DCMAKE_INSTALL_PREFIX=$BACKEND_INSTALL_DIR
+make install
+cd ../..
+
+## Setup backend
+pip install ctranslate2 transformers
+export MODEL_DIR=/workspace/deploy_models/
+
+## Deploy
+export CUDA_VISIBLE_DEVICES=1 
+export LD_PRELOAD=/opt/intel/compilers_and_libraries_2020.0.166/linux/compiler/lib/intel64_lin/libiomp5.so 
+tritonserver --backend-directory $BACKEND_INSTALL_DIR/backends --model-repository $MODEL_DIR
+```
+
+
+# (OLD README) CTranslate2 Backend for Triton Inference Server
 
 This is a [backend](https://github.com/triton-inference-server/backend) based on [CTranslate2](https://github.com/OpenNMT/CTranslate2) for NVIDIA's [Triton Inference Server](https://developer.nvidia.com/nvidia-triton-inference-server), which can be used to deploy translation and language models supported by CTranslate2 on Triton with both CPU and GPU capabilities.
 

@@ -26,7 +26,7 @@
 
 #include <cstddef>
 #include <cstring>
-#include <memory> 
+#include <memory>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -41,28 +41,14 @@
 #include "triton/common/triton_json.h"
 #include "triton/core/tritonbackend.h"
 
-#include "ctranslate2/generation.h"
-#include "ctranslate2/layers/whisper.h"
 #include "ctranslate2/models/model.h"
-#include "ctranslate2/replica_pool.h"
-#include "ctranslate2/vocabulary.h"
-#include "ctranslate2/storage_view.h"
-#include "ctranslate2/models/whisper.h"
-#include "ctranslate2/models/language_model.h"
-#include "ctranslate2/models/model.h"
-#include "ctranslate2/models/model_factory.h"
-#include "ctranslate2/models/model_reader.h"
 #include "ctranslate2/models/sequence_to_sequence.h"
-#include "ctranslate2/models/transformer.h"
 #include "triton/core/tritonserver.h"
-#include "ctranslate2/allocator.h"
-#include "ctranslate2/types.h"
-#include "ctranslate2/utils.h"
-
 
 namespace triton {
 namespace backend {
 namespace ctranslate2 {
+
 TRITONSERVER_Error *
 ReadParameter(const triton::common::TritonJson::Value &params,
               const std::string &key, std::string *param) {
@@ -93,7 +79,7 @@ ReadParameter(const triton::common::TritonJson::Value &params,
   *param = static_cast<size_t>(std::stoi(tmp));
   return nullptr; // success
 }
- 
+
 TRITONSERVER_Error *
 ReadParameter(const triton::common::TritonJson::Value &params,
               const std::string &key, float *param) {
@@ -147,18 +133,18 @@ public:
     RETURN_IF_ERROR(outputs.IndexAsObject(0, &output));
 
     // Record the input and output name in the model state.
-    const char *features_input_name;
-    size_t features_input_name_len;
-    RETURN_IF_ERROR(input.MemberAsString("name", &features_input_name, &features_input_name_len));
-    features_input_name_ = std::string(features_input_name);
+    const char *input_name;
+    size_t input_name_len;
+    RETURN_IF_ERROR(input.MemberAsString("name", &input_name, &input_name_len));
+    input_name_ = std::string(input_name);
 
     if (inputs.ArraySize() == 2) {
       RETURN_IF_ERROR(inputs.IndexAsObject(1, &input));
-      const char *prompts_input_name;
-      size_t prompts_input_name_len;
-      RETURN_IF_ERROR(input.MemberAsString("name", &prompts_input_name,
-                                           &prompts_input_name_len));
-      prompts_input_name_ = std::string(prompts_input_name);
+      const char *target_prefix_input_name;
+      size_t target_prefix_input_name_len;
+      RETURN_IF_ERROR(input.MemberAsString("name", &target_prefix_input_name,
+                                           &target_prefix_input_name_len));
+      target_prefix_input_name_ = std::string(target_prefix_input_name);
     }
 
     const char *output_name;
@@ -186,36 +172,36 @@ public:
                      compute_type_str)
                         .c_str());
       }
-      // if (params.Find("max_decoding_length_multiple")) {
-      //   size_t max_decode_length_multiple;
-      //   RETURN_IF_ERROR(ReadParameter(params, "max_decoding_length_multiple",
-      //                                 &max_decode_length_multiple));
-      //   max_decode_length_multiple_ = max_decode_length_multiple;
-      // }
+      if (params.Find("max_decoding_length_multiple")) {
+        size_t max_decode_length_multiple;
+        RETURN_IF_ERROR(ReadParameter(params, "max_decoding_length_multiple",
+                                      &max_decode_length_multiple));
+        max_decode_length_multiple_ = max_decode_length_multiple;
+      }
       if (params.Find("beam_size")) {
         RETURN_IF_ERROR(ReadParameter(
-            params, "beam_size", &(default_whisper_options_.beam_size)));
+            params, "beam_size", &(default_translation_options_.beam_size)));
       }
-      // if (params.Find("repetition_penalty")) {
-      //   RETURN_IF_ERROR(ReadParameter(params, "repetition_penalty",
-      //                                 &(default_whisper_options_.repetition_penalty)));
-      // }
+      if (params.Find("repetition_penalty")) {
+        RETURN_IF_ERROR(ReadParameter(params, "repetition_penalty",
+                                      &(default_translation_options_.repetition_penalty)));
+      }
     }
     return nullptr;
   }
 
-  const std::string &FeaturesInputTensorName() const { return features_input_name_; }
-  const std::optional<std::string> &PromptsInputName() const {
-    return prompts_input_name_;
+  const std::string &InputTensorName() const { return input_name_; }
+  const std::optional<std::string> &TargetPrefixInputName() const {
+    return target_prefix_input_name_;
   }
   const std::string &OutputTensorName() const { return output_name_; }
   TRITONSERVER_DataType OutputDataType() const { return output_type_; }
-  ::ctranslate2::models::WhisperOptions DefaultWhisperOptions() const {
-    return default_whisper_options_;
+  ::ctranslate2::TranslationOptions DefaultTranslationOptions() const {
+    return default_translation_options_;
   }
-  // const std::optional<size_t> &MaxDecodeLengthMultiple() const {
-  //   return max_decode_length_multiple_;
-  // }
+  const std::optional<size_t> &MaxDecodeLengthMultiple() const {
+    return max_decode_length_multiple_;
+  }
 
   TRITONSERVER_Error *
   LoadModel(const ::ctranslate2::Device device, std::int32_t device_index,
@@ -243,14 +229,14 @@ public:
 private:
   // TRITONBACKEND_Model *triton_model_;
   triton::common::TritonJson::Value model_config_;
-  std::string features_input_name_;
-  std::optional<std::string> prompts_input_name_;
+  std::string input_name_;
+  std::optional<std::string> target_prefix_input_name_;
   std::string output_name_;
   TRITONSERVER_DataType output_type_;
   ::ctranslate2::ComputeType compute_type_ =
       ::ctranslate2::ComputeType::DEFAULT;
-  ::ctranslate2::models::WhisperOptions default_whisper_options_;
-  // std::optional<size_t> max_decode_length_multiple_;
+  ::ctranslate2::TranslationOptions default_translation_options_;
+  std::optional<size_t> max_decode_length_multiple_;
   std::string model_path_;
   std::shared_ptr<::ctranslate2::models::ModelReader> model_reader_;
   std::map<std::pair<::ctranslate2::Device, std::int32_t>,
@@ -271,9 +257,7 @@ private:
     model_reader_ =
         std::make_shared<::ctranslate2::models::ModelFileReader>(model_path_);
     auto contains_model = ::ctranslate2::models::contains_model(model_path_);
-    LOG_MESSAGE(TRITONSERVER_LOG_INFO,
-              (std::string("Model read from: ") + model_path_)
-                  .c_str());
+
     RETURN_ERROR_IF_FALSE(contains_model, TRITONSERVER_ERROR_UNAVAILABLE,
                           std::string("unable to find '") + model_path_ +
                               "' for model instance '" + Name() + "'");
@@ -393,54 +377,6 @@ TRITONSERVER_Error *ToIdVector(const char *buffer,
   }
 }
 
-// MODIFYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY
-template <typename T>
-TRITONSERVER_Error *
-ToIdVectorTypedFloat(const char *buffer, const size_t element_count,
-                std::vector<float> *ids, const size_t start_idx = 0) {
-  const T *vals = reinterpret_cast<const T *>(buffer);
-  *ids =
-      std::vector<float>(vals + start_idx, vals + start_idx + element_count);
-  return nullptr;
-}
-
-TRITONSERVER_Error *ToIdVectorFloat(const char *buffer,
-                               TRITONSERVER_DataType datatype,
-                               std::vector<float> *ids, const size_t start_idx,
-                               const size_t element_cnt) {
-
-  switch (datatype) {
-  case TRITONSERVER_TYPE_UINT8:
-    return ToIdVectorTypedFloat<uint8_t>(buffer, element_cnt, ids, start_idx);
-  case TRITONSERVER_TYPE_UINT16:
-    return ToIdVectorTypedFloat<uint16_t>(buffer, element_cnt, ids, start_idx);
-  case TRITONSERVER_TYPE_UINT32:
-    return ToIdVectorTypedFloat<uint32_t>(buffer, element_cnt, ids, start_idx);
-  case TRITONSERVER_TYPE_UINT64:
-    return ToIdVectorTypedFloat<uint64_t>(buffer, element_cnt, ids, start_idx);
-  case TRITONSERVER_TYPE_INT8:
-    return ToIdVectorTypedFloat<int8_t>(buffer, element_cnt, ids, start_idx);
-  case TRITONSERVER_TYPE_INT16:
-    return ToIdVectorTypedFloat<int16_t>(buffer, element_cnt, ids, start_idx);
-  case TRITONSERVER_TYPE_INT32:
-    return ToIdVectorTypedFloat<int32_t>(buffer, element_cnt, ids, start_idx);
-  case TRITONSERVER_TYPE_INT64:
-    return ToIdVectorTypedFloat<int64_t>(buffer, element_cnt, ids, start_idx);
-
-  case TRITONSERVER_TYPE_FP32:
-    return ToIdVectorTypedFloat<float>(buffer, element_cnt, ids, start_idx);
-  case TRITONSERVER_TYPE_FP64:
-    return ToIdVectorTypedFloat<double>(buffer, element_cnt, ids, start_idx);
-  default:
-    return TRITONSERVER_ErrorNew(
-        TRITONSERVER_ERROR_INVALID_ARG,
-        std::string(std::string("class result not available for output due to "
-                                "unsupported type '") +
-                    std::string(TRITONSERVER_DataTypeString(datatype)) + "'")
-            .c_str());
-  }
-}
-
 template <typename T>
 void ConvertToRawPointer(const std::vector<std::size_t> &out_tokens,
                          void *out_buffer) {
@@ -529,24 +465,50 @@ TRITONSERVER_Error *ToOutBuffer(const std::vector<std::size_t> &out_tokens,
 }
 
 std::string
-WhisperOptionsToString(const ::ctranslate2::models::WhisperOptions &options) {
+TranslationOptionsToString(const ::ctranslate2::TranslationOptions &options) {
   std::stringstream ss;
 
-  ss << "WhisperOptions("
+  ss << "TranslationOptions("
      << "beam_size=" << options.beam_size << ", "
      << "patience=" << options.patience << ", "
      << "length_penalty=" << options.length_penalty << ", "
+     << "coverage_penalty=" << options.coverage_penalty << ", "
      << "repetition_penalty=" << options.repetition_penalty << ", "
      << "no_repeat_ngram_size=" << options.no_repeat_ngram_size << ", "
-     << "max_length=" << options.max_length << ", "
-     << "return_no_speech_prob=" << options.return_no_speech_prob << ", "
-     << "max_initial_timestamp_index=" << options.max_initial_timestamp_index << ", "
-     << "suppress_blank=" << options.suppress_blank << ", "
-     // << "suppress_tokens=" << options.suppress_tokens << ", "
+     << "disable_unk=" << options.disable_unk << ", "
+     << "size(suppress_sequences)=" << options.suppress_sequences.size() << ", "
+     << "prefix_bias_beta=" << options.prefix_bias_beta << ", ";
+
+  if (std::holds_alternative<std::string>(options.end_token)) {
+    ss << "end_token=\"" << std::get<std::string>(options.end_token) << "\", ";
+  } else if (std::holds_alternative<std::vector<std::string>>(
+                 options.end_token)) {
+    for (auto &end_token :
+         std::get<std::vector<std::string>>(options.end_token)) {
+      ss << "end_token[]=" << end_token << " ";
+    }
+    ss << ",";
+  } else if (std::holds_alternative<std::vector<size_t>>(options.end_token)) {
+    for (auto &end_token :
+         std::get<std::vector<std::string>>(options.end_token)) {
+      ss << "end_token[]=" << end_token << " ";
+    }
+    ss << ",";
+  }
+
+  ss << "max_input_length=" << options.max_input_length << ", "
+     << "max_decoding_length=" << options.max_decoding_length << ", "
+     << "min_decoding_length=" << options.min_decoding_length << ", "
      << "sampling_topk=" << options.sampling_topk << ", "
      << "sampling_temperature=" << options.sampling_temperature << ", "
+     << "use_vmap=" << options.use_vmap << ", "
      << "num_hypotheses=" << options.num_hypotheses << ", "
-     << "return_scores=" << options.return_scores << ")";
+     << "return_scores=" << options.return_scores << ", "
+     << "return_attention=" << options.return_attention << ", "
+     << "return_alternatives=" << options.return_alternatives << ", "
+     << "min_alternative_expansion_prob="
+     << options.min_alternative_expansion_prob << ", "
+     << "replace_unknowns=" << options.replace_unknowns << ")";
   return ss.str();
 }
 
@@ -555,119 +517,8 @@ TRITONSERVER_Error *InputBufferToRaggedTokens(
     const uint32_t request_count,
     std::vector<TRITONBACKEND_Response *> *responses,
     BackendInputCollector *collector,
-    std::vector<std::vector<float>> *ragged_tokens,
-    // size_t *max_sequence_length, 
-    const std::string &input_name,
-    bool is_ragged_input = true, bool supports_batching = true) {
-  std::vector<std::vector<float>> tokens;
-  tokens.reserve(request_count);
-
-  const char *input_buffer;
-  size_t batchn_byte_size;
-  TRITONSERVER_MemoryType memory_type;
-  int64_t memory_type_id;
-
-  // TODO support data straight from GPU
-  std::vector<std::pair<TRITONSERVER_MemoryType, int64_t>> alloc_preference = {
-      {TRITONSERVER_MEMORY_CPU_PINNED, 0}, {TRITONSERVER_MEMORY_CPU, 0}};
-
-  RETURN_IF_ERROR(collector->ProcessTensor(
-      input_name.c_str(), nullptr, 0, alloc_preference, &input_buffer,
-      &batchn_byte_size, &memory_type, &memory_type_id));
-
-  // bool is_ragged =
-  //
-  // size_t max_seq_length = 0;
-  if (is_ragged_input) {
-    int64_t total_elements = 0;
-    for (size_t request_idx = 0; request_idx < request_count; request_idx++) {
-      TRITONBACKEND_Input *input;
-      RESPOND_AND_SET_NULL_IF_ERROR(
-          &((*responses)[request_idx]),
-          TRITONBACKEND_RequestInput(requests[request_idx], input_name.c_str(),
-                                     &input));
-
-
-      TRITONSERVER_DataType input_dt;
-      const int64_t *input_shape;
-      uint32_t input_dims_count;
-      RETURN_IF_ERROR(
-          TRITONBACKEND_InputProperties(input, nullptr, &input_dt, &input_shape,
-                                        &input_dims_count, nullptr, nullptr));
-
-      if (input_dt != TRITONSERVER_TYPE_FP32) {
-        LOG_MESSAGE(TRITONSERVER_LOG_VERBOSE,
-                  (std::string("Input DataType Error: ") +
-                   std::to_string(input_dt))
-                      .c_str());
-      }
-      LOG_MESSAGE(TRITONSERVER_LOG_VERBOSE,
-                  (std::string("Input DataType: ") +
-                   std::to_string(input_dt))
-                      .c_str());
-      auto element_count = GetElementCount(input_shape, input_dims_count);
-      LOG_MESSAGE(TRITONSERVER_LOG_VERBOSE,
-                  (std::string("Element count for request ") +
-                   std::to_string(request_idx) + std::string(": ") +
-                   std::to_string(element_count))
-                      .c_str());
-      // max_seq_length =
-      //     std::max(max_seq_length, static_cast<size_t>(element_count));
-
-      std::vector<float> ids;
-      ToIdVectorFloat(input_buffer, input_dt, &ids, total_elements, element_count);
-      total_elements += element_count;
-      tokens.emplace_back(ids);
-    }
-  } else {
-    // input type is the same for all
-    TRITONBACKEND_Input *input;
-    RETURN_IF_ERROR(
-        TRITONBACKEND_RequestInput(requests[0], input_name.c_str(), &input));
-
-    TRITONSERVER_DataType input_dt;
-    const int64_t *input_shape;
-    uint32_t input_dims_count;
-    RETURN_IF_ERROR(
-        TRITONBACKEND_InputProperties(input, nullptr, &input_dt, &input_shape,
-                                      &input_dims_count, nullptr, nullptr));
-
-    if (input_dims_count > 2) {
-      return TRITONSERVER_ErrorNew(
-          TRITONSERVER_ERROR_INVALID_ARG,
-          std::string("Inputs with more than two dimensions unsupported")
-              .c_str());
-    }
-
-    std::vector<int64_t> batchn_shape =
-        std::vector<int64_t>(input_shape, input_shape + input_dims_count);
-    if (supports_batching) {
-      batchn_shape[0] = total_batch_size;
-    }
-
-    for (size_t vector_idx = 0; vector_idx < total_batch_size; vector_idx++) {
-      std::vector<float> ids;
-      ToIdVectorFloat(input_buffer, input_dt, &ids, vector_idx * batchn_shape[1],
-                 (vector_idx + 1) * batchn_shape[1]);
-      tokens.emplace_back(ids);
-    }
-    // max_seq_length = static_cast<size_t>(batchn_shape[1]);
-  }
-
-  *ragged_tokens = tokens;
-  // *max_sequence_length = max_seq_length;
-
-  return nullptr;
-}
-
-TRITONSERVER_Error *PromptBufferToRaggedTokens(
-    size_t total_batch_size, TRITONBACKEND_Request **requests,
-    const uint32_t request_count,
-    std::vector<TRITONBACKEND_Response *> *responses,
-    BackendInputCollector *collector,
     std::vector<std::vector<size_t>> *ragged_tokens,
-    // size_t *max_sequence_length, 
-    const std::string &input_name,
+    size_t *max_sequence_length, const std::string &input_name,
     bool is_ragged_input = true, bool supports_batching = true) {
   std::vector<std::vector<size_t>> tokens;
   tokens.reserve(request_count);
@@ -687,7 +538,7 @@ TRITONSERVER_Error *PromptBufferToRaggedTokens(
 
   // bool is_ragged =
   //
-  // size_t max_seq_length = 0;
+  size_t max_seq_length = 0;
   if (is_ragged_input) {
     int64_t total_elements = 0;
     for (size_t request_idx = 0; request_idx < request_count; request_idx++) {
@@ -696,7 +547,6 @@ TRITONSERVER_Error *PromptBufferToRaggedTokens(
           &((*responses)[request_idx]),
           TRITONBACKEND_RequestInput(requests[request_idx], input_name.c_str(),
                                      &input));
-
 
       TRITONSERVER_DataType input_dt;
       const int64_t *input_shape;
@@ -711,8 +561,8 @@ TRITONSERVER_Error *PromptBufferToRaggedTokens(
                    std::to_string(request_idx) + std::string(": ") +
                    std::to_string(element_count))
                       .c_str());
-      // max_seq_length =
-      //     std::max(max_seq_length, static_cast<size_t>(element_count));
+      max_seq_length =
+          std::max(max_seq_length, static_cast<size_t>(element_count));
 
       std::vector<size_t> ids;
       ToIdVector(input_buffer, input_dt, &ids, total_elements, element_count);
@@ -751,15 +601,14 @@ TRITONSERVER_Error *PromptBufferToRaggedTokens(
                  (vector_idx + 1) * batchn_shape[1]);
       tokens.emplace_back(ids);
     }
-    // max_seq_length = static_cast<size_t>(batchn_shape[1]);
+    max_seq_length = static_cast<size_t>(batchn_shape[1]);
   }
 
   *ragged_tokens = tokens;
-  // *max_sequence_length = max_seq_length;
+  *max_sequence_length = max_seq_length;
 
   return nullptr;
 }
-
 /////////////
 
 //
@@ -773,7 +622,6 @@ TRITONSERVER_Error *PromptBufferToRaggedTokens(
 //
 class ModelInstanceState : public BackendModelInstance {
 public:
-  
   static TRITONSERVER_Error *
   Create(ModelState *model_state,
          TRITONBACKEND_ModelInstance *triton_model_instance,
@@ -807,51 +655,38 @@ public:
               const uint32_t request_count,
               std::vector<TRITONBACKEND_Response *> *responses,
               BackendInputCollector *collector,
-              // ::ctranslate2::StorageView *features,
-              std::vector<std::vector<std::float_t>> *features,
-              std::vector<std::vector<size_t>> *prompts) {
+              const ::ctranslate2::Vocabulary &source_vocab,
+              const ::ctranslate2::Vocabulary &target_vocab,
+              std::vector<std::vector<std::string>> *input_tokens,
+              std::vector<std::vector<std::string>> *input_target_prefix,
+              size_t *max_sequence_length) {
 
-
-    std::vector<std::vector<std::float_t>> input_features;
-
-
+    std::vector<std::vector<size_t>> input_token_ids;
     RETURN_IF_ERROR(InputBufferToRaggedTokens(
         total_batch_size, requests, request_count, responses, collector,
-        &input_features, //max_sequence_length,
-        StateForModel()->FeaturesInputTensorName(),
-        StateForModel()->IsInputRagged(StateForModel()->FeaturesInputTensorName()),
+        &input_token_ids, max_sequence_length,
+        StateForModel()->InputTensorName(),
+        StateForModel()->IsInputRagged(StateForModel()->InputTensorName()),
         supports_batching_));
-
-
-    *features = input_features;
-    LOG_MESSAGE(TRITONSERVER_LOG_VERBOSE,
-                "FEATURES_INPUT");
-    LOG_MESSAGE(TRITONSERVER_LOG_INFO,
-                std::to_string(input_features[0][0]).c_str());
-
-    if (StateForModel()->PromptsInputName()) {
-
-      std::vector<std::vector<size_t>> input_prompts;
-
-      RETURN_IF_ERROR(PromptBufferToRaggedTokens(
+    *input_tokens = source_vocab.to_tokens(input_token_ids);
+    if (StateForModel()->TargetPrefixInputName()) {
+      std::vector<std::vector<size_t>> target_prefix_token_ids;
+      size_t discard_seq_length;
+      RETURN_IF_ERROR(InputBufferToRaggedTokens(
           total_batch_size, requests, request_count, responses, collector,
-          &input_prompts, //&discard_seq_length,
-          *(StateForModel()->PromptsInputName()),
+          &target_prefix_token_ids, &discard_seq_length,
+          *(StateForModel()->TargetPrefixInputName()),
           StateForModel()->IsInputRagged(
-              *(StateForModel()->PromptsInputName())),
+              *(StateForModel()->TargetPrefixInputName())),
           supports_batching_));
-      *prompts = input_prompts;
-
-      LOG_MESSAGE(TRITONSERVER_LOG_VERBOSE,
-                "Prompts_INPUT");
-      LOG_MESSAGE(TRITONSERVER_LOG_INFO,
-                  std::to_string(input_prompts[0][0]).c_str());
+      *input_target_prefix = target_vocab.to_tokens(target_prefix_token_ids);
     }
     return nullptr;
   }
 
   void ProcessRequests(TRITONBACKEND_Request **requests,
                        const uint32_t request_count) {
+
     uint64_t exec_start_ns = 0;
     SET_TIMESTAMP(exec_start_ns);
 
@@ -880,7 +715,7 @@ public:
         // supports batching, the first dimension size is batch size.
         TRITONBACKEND_Input *input;
         TRITONSERVER_Error *err = TRITONBACKEND_RequestInput(
-            requests[i], StateForModel()->FeaturesInputTensorName().c_str(), &input);
+            requests[i], StateForModel()->InputTensorName().c_str(), &input);
         if (err == nullptr) {
           const int64_t *shape;
           err = TRITONBACKEND_InputProperties(input, nullptr, nullptr, &shape,
@@ -895,6 +730,7 @@ public:
         total_batch_size += 1;
       }
     }
+
     // If there are no valid payloads then no need to run the inference.
     if (total_batch_size == 0) {
       return;
@@ -919,28 +755,29 @@ public:
       }
     }
 
+    const ::ctranslate2::models::SequenceToSequenceModel *seq2seq_model =
+        dynamic_cast<const ::ctranslate2::models::SequenceToSequenceModel *>(
+            model_.get());
+    const auto source_vocab = seq2seq_model->get_source_vocabulary();
+    const auto target_vocab = seq2seq_model->get_target_vocabulary();
+
     auto collector = std::make_unique<BackendInputCollector>(
         requests, request_count, &responses,
         model_state_->TritonMemoryManager(),
         model_state_->EnablePinnedInput() /* pinned_enabled */,
         nullptr /* stream*/);
 
-    // ::ctranslate2::StorageView features;
-    std::vector<std::vector<std::float_t>> features;
-    std::vector<std::vector<size_t>> prompts;
-    // LOG_MESSAGE(TRITONSERVER_LOG_INFO, std::to_string(prompts.size()).c_str());
-    // size_t max_input_seq_length;
+    std::vector<std::vector<std::string>> inputs;
+    std::vector<std::vector<std::string>> target_prefix;
+    size_t max_input_seq_length;
     RESPOND_ALL_AND_SET_NULL_IF_ERROR(
         responses, request_count,
         CreateInput(total_batch_size, requests, request_count, &responses,
-                    collector.get(), &features,
-                    &prompts));
+                    collector.get(), source_vocab, target_vocab, &inputs,
+                    &target_prefix, &max_input_seq_length));
 
-    // std::unique_ptr<::ctranslate2::models::WhisperReplica>
-    //     whisper_replica = ::ctranslate2::models::WhisperReplica::create_from_model(*model_); //->as_sequence_generator();
-    std::unique_ptr<::ctranslate2::models::WhisperReplica>
-        whisper_replica = ::ctranslate2::models::WhisperReplica::create_from_model(*model_); //->as_sequence_generator();
-        // whisper_replica = model_//->as_sequence_generator();
+    std::unique_ptr<::ctranslate2::models::SequenceToSequenceReplica>
+        seq2seq_replica = model_->as_sequence_to_sequence();
 
     // Finalize the collector. If 'true' is returned, 'input_buffer'
     // will not be valid until the backend synchronizes the CUDA
@@ -955,63 +792,18 @@ public:
 
     uint64_t compute_start_ns = 0;
     SET_TIMESTAMP(compute_start_ns);
-    ::ctranslate2::models::WhisperOptions options =
-        StateForModel()->DefaultWhisperOptions();
-    // auto max_decode_length_multiple =
-    //     StateForModel()->MaxDecodeLengthMultiple();
-    // if (max_decode_length_multiple) {
-    //   options.max_decoding_length =
-    //       *max_decode_length_multiple * max_input_seq_length;
-    // }
-    LOG_MESSAGE(TRITONSERVER_LOG_VERBOSE,
-                WhisperOptionsToString(options).c_str());
-    // std::stringstream ss;
-    //   for (auto it = features.begin(); it != features.end(); it++)    {
-    //       if (it != features.begin()) {
-    //           ss << " ";
-    //       }
-    //       ss << *it;
-    //   }
-    //   LOG_MESSAGE(TRITONSERVER_LOG_VERBOSE,
-    //             ss.str().c_str());
-    // ::ctranslate2::Shape features_size = std::vector<size_t>::vector(features.size());
-    
-    long int batch_size = static_cast<long int>(features.size());
-    std::vector<::ctranslate2::dim_t> Shape = {batch_size, 80, 3000};
-
-
-    int k = 0;
-    float arr[batch_size*240000];
-    for (auto &vec: features) {
-        for (auto &e: vec) {
-            arr[k++] = e;
-        }
-    } 
-    LOG_MESSAGE(TRITONSERVER_LOG_VERBOSE,
-                "FEATURES");
-    LOG_MESSAGE(TRITONSERVER_LOG_INFO,
-                std::to_string(features[0][0]).c_str());
-    LOG_MESSAGE(TRITONSERVER_LOG_INFO,
-                std::to_string(arr[0]).c_str());
-
-    ::ctranslate2::StorageView st_features(Shape, arr);
-
-    LOG_MESSAGE(TRITONSERVER_LOG_VERBOSE,
-                "ST_FEATURES_SIZE");
-    LOG_MESSAGE(TRITONSERVER_LOG_INFO,
-                std::to_string(st_features.size()).c_str());
-    
-
-    for (const auto& dim : st_features.shape()) {
-      LOG_MESSAGE(TRITONSERVER_LOG_VERBOSE,
-                "ST_FEATURES_shape");
-      LOG_MESSAGE(TRITONSERVER_LOG_INFO,
-                  std::to_string(dim).c_str());
+    ::ctranslate2::TranslationOptions options =
+        StateForModel()->DefaultTranslationOptions();
+    auto max_decode_length_multiple =
+        StateForModel()->MaxDecodeLengthMultiple();
+    if (max_decode_length_multiple) {
+      options.max_decoding_length =
+          *max_decode_length_multiple * max_input_seq_length;
     }
-    // const bool to_cpu = false;
-    // st_features = whisper_replica->encode(st_features, to_cpu);
-    std::vector<::ctranslate2::models::WhisperGenerationResult> whisper_results =
-        whisper_replica->generate(st_features, prompts, options);
+    LOG_MESSAGE(TRITONSERVER_LOG_VERBOSE,
+                TranslationOptionsToString(options).c_str());
+    std::vector<::ctranslate2::TranslationResult> translation_results =
+        seq2seq_replica->translate(inputs, target_prefix, options);
 
     uint64_t compute_end_ns = 0;
     SET_TIMESTAMP(compute_end_ns);
@@ -1027,26 +819,11 @@ public:
                                       StateForModel()->SupportsFirstDimBatching(
                                           &supports_first_dim_batching));
     size_t idx = 0;
-    LOG_MESSAGE(TRITONSERVER_LOG_VERBOSE,
-                "whisper_results");
-    LOG_MESSAGE(TRITONSERVER_LOG_VERBOSE,
-                std::to_string(whisper_results.size()).c_str());
-    for (auto &whisper : whisper_results) {
+    for (auto &translation : translation_results) {
 
-      std::vector<size_t> out_ids = whisper.sequences_ids[0];
-      std::stringstream ss;
-      for (auto it = out_ids.begin(); it != out_ids.end(); it++)    {
-          if (it != out_ids.begin()) {
-              ss << " ";
-          }
-          ss << *it;
-      }
-      LOG_MESSAGE(TRITONSERVER_LOG_VERBOSE,
-                ss.str().c_str());
-      LOG_MESSAGE(TRITONSERVER_LOG_VERBOSE,
-                std::to_string(out_ids.size()).c_str());
+      std::vector<std::string> out_tokens = translation.output();
       // only output best hypotheses
-      // std::vector<size_t> out_ids = out_tokens;
+      std::vector<size_t> out_ids = target_vocab.to_ids({out_tokens})[0];
 
       TRITONBACKEND_Output *response_output;
       std::vector<std::int64_t> out_shape = {(std::int64_t)out_ids.size()};
