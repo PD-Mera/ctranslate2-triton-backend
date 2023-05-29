@@ -56,9 +56,13 @@ cd ../..
 
 ## Setup backend
 pip install ctranslate2 transformers
-export MODEL_DIR=/workspace/deploy_models/
+
+## Convert model with ctranslate2
+mkdir -p /workspace/deploy_models/whisper/
+ct2-transformers-converter --model openai/whisper-tiny --output_dir /workspace/deploy_models/whisper/model
 
 ## Deploy
+export MODEL_DIR=/workspace/deploy_models/
 export CUDA_VISIBLE_DEVICES=1 
 export LD_PRELOAD=/opt/intel/compilers_and_libraries_2020.0.166/linux/compiler/lib/intel64_lin/libiomp5.so 
 tritonserver --backend-directory $BACKEND_INSTALL_DIR/backends --model-repository $MODEL_DIR
