@@ -12,7 +12,7 @@ docker run --gpus '"device=0,1"' -it --name dongtrinh.ctranslate -p8187:8000 -p8
 ## Install cmake
 wget https://github.com/Kitware/CMake/releases/download/v3.26.0/cmake-3.26.0-linux-x86_64.tar.gz
 tar -xzvf cmake-3.26.0-linux-x86_64.tar.gz
-ln -sf $(pwd)/cmake-3.20.0-linux-x86_64/bin/* /usr/bin/
+ln -sf $(pwd)/cmake-3.26.0-linux-x86_64/bin/* /usr/bin/
 
 ## Install intel-mkl
 wget -O - https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2019.PUB 2> /dev/null | apt-key add -
