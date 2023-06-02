@@ -7,7 +7,7 @@ In this project, I used docker Triton 22.12, for now, you can switch between tra
 ``` bash
 ## Start docker
 docker pull nvcr.io/nvidia/tritonserver:22.12
-docker run --gpus '"device=0,1"' -it --name dongtrinh.ctranslate -p8187:8000 -p8188:8001 -p8189:8002 -v/home/data2/dongtrinh/InternImage-Utility:/InternImage-Utility/ --shm-size=16G nvcr.io/nvidia/tritonserver:22.12-py3
+docker run --gpus '"device=0,1"' -it --name dongtrinh.ctranslate -p8187:8000 -p8188:8001 -p8189:8002 -v/home/data2/dongtrinh/ctranslate2:/workspace/ --shm-size=16G nvcr.io/nvidia/tritonserver:22.12-py3
 
 ## Install cmake
 wget https://github.com/Kitware/CMake/releases/download/v3.26.0/cmake-3.26.0-linux-x86_64.tar.gz
