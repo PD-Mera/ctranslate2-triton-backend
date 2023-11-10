@@ -1,0 +1,6 @@
+[submodule "src/CTranslate2"]
+	path = src/CTranslate2
+	url = https://github.com/OpenNMT/CTranslate2
+[submodule "src/ctranslate-triton-backend"]
+	path = src/ctranslate-triton-backend
+	url = https://github.com/speechmatics/ctranslate2_triton_backend
