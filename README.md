@@ -28,7 +28,7 @@ rm -rf /var/lib/apt/lists/*
 
 ## Install Ctranslate2
 git clone --recursive https://github.com/OpenNMT/CTranslate2.git
-cd Ctranslate2
+cd CTranslate2
 mkdir build && cd build
 cmake .. -DWITH_CUDA=ON
 make -j4
