@@ -20,7 +20,7 @@ tar -xzvf cmake-3.26.0-linux-x86_64.tar.gz
 ln -sf $(pwd)/cmake-3.26.0-linux-x86_64/bin/* /usr/bin/
 
 ## Install intel-mkl
-wget -O - https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB> /dev/null | apt-key add -
+wget -O - https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB 2> /dev/null | apt-key add -
 sh -c 'echo deb https://apt.repos.intel.com/mkl all main > /etc/apt/sources.list.d/intel-mkl.list'
 apt-get update
 apt-get install -y intel-mkl-64bit-2020.0-088
