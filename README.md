@@ -62,6 +62,7 @@ cd ../..
 
 ## Setup backend
 pip install ctranslate2 transformers
+pip install torch==1.13.1+cpu -f https://download.pytorch.org/whl/torch_stable.html # enough to convert models
 
 ## Convert model with ctranslate2
 mkdir -p /workspace/deploy_models/whisper/
