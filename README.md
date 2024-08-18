@@ -58,7 +58,7 @@ mkdir build && cd build
 export BACKEND_INSTALL_DIR=$(pwd)/install
 cmake .. -DCMAKE_BUILD_TYPE=Release -DTRITON_ENABLE_GPU=1 -DCMAKE_INSTALL_PREFIX=$BACKEND_INSTALL_DIR
 make install
-cd ../..
+cd ..
 
 ## Setup backend
 pip install ctranslate2 transformers
@@ -66,7 +66,10 @@ pip install torch==1.13.1+cpu -f https://download.pytorch.org/whl/torch_stable.h
 
 ## Convert model with ctranslate2
 mkdir -p /workspace/deploy_models/whisper/
-ct2-transformers-converter --model openai/whisper-tiny --output_dir /workspace/deploy_models/whisper/model
+ct2-transformers-converter --model openai/whisper-tiny --output_dir /workspace/deploy_models/whisper/1/model
+
+## Copy config file
+cp examples/model_repo/whisper/config.pbtxt /workspace/deploy_models/whisper/
 
 ## Deploy
 export MODEL_DIR=/workspace/deploy_models/
