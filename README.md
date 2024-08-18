@@ -83,6 +83,7 @@ tritonserver --backend-directory $BACKEND_INSTALL_DIR/backends --model-repositor
 You can run `./ctranslate2_triton_backend/examples/whisper_client.py` to inference
 
 ``` bash
+pip install transformers ctranslate2 tritonclient[all] librosa
 python ./ctranslate2_triton_backend/examples/whisper_client.py
 ```
 
