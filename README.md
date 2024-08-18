@@ -33,8 +33,8 @@ mkdir build && cd build
 cmake .. -DWITH_CUDA=ON
 make -j4
 make install
-cd ..
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${PWD}/build
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${PWD}
+cd ../..
 
 ## Install pybind11
 cd python
@@ -47,7 +47,7 @@ cd ..
 apt update
 apt install rapidjson-dev
 
-## Install Ctranslate2-triton-backend
+## Install ctranslate2_triton_backend
 git clone https://github.com/PD-Mera/ctranslate2_triton_backend.git
 cd ctranslate2_triton_backend
 
@@ -58,7 +58,7 @@ mkdir build && cd build
 export BACKEND_INSTALL_DIR=$(pwd)/install
 cmake .. -DCMAKE_BUILD_TYPE=Release -DTRITON_ENABLE_GPU=1 -DCMAKE_INSTALL_PREFIX=$BACKEND_INSTALL_DIR
 make install
-cd ..
+cd ../..
 
 ## Setup backend
 pip install ctranslate2 transformers
@@ -69,7 +69,7 @@ mkdir -p /workspace/deploy_models/whisper/
 ct2-transformers-converter --model openai/whisper-tiny --output_dir /workspace/deploy_models/whisper/1/model
 
 ## Copy config file
-cp examples/model_repo/whisper/config.pbtxt /workspace/deploy_models/whisper/
+cp ctranslate2_triton_backend/examples/model_repo/whisper/config.pbtxt /workspace/deploy_models/whisper/
 
 ## Deploy
 export MODEL_DIR=/workspace/deploy_models/
