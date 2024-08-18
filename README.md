@@ -47,7 +47,7 @@ apt update
 apt install rapidjson-dev
 
 ## Install Ctranslate2-triton-backend
-git clone https://github.com/speechmatics/ctranslate2_triton_backend.git
+git clone https://github.com/PD-Mera/ctranslate2_triton_backend.git
 cd ctranslate2_triton_backend
 
 ## Choose model type
