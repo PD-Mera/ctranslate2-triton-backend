@@ -89,6 +89,9 @@ python ./ctranslate2_triton_backend/examples/whisper_client.py
 
 # (OLD README) CTranslate2 Backend for Triton Inference Server
 
+<details>
+  <summary>Click here to expand</summary>
+
 This is a [backend](https://github.com/triton-inference-server/backend) based on [CTranslate2](https://github.com/OpenNMT/CTranslate2) for NVIDIA's [Triton Inference Server](https://developer.nvidia.com/nvidia-triton-inference-server), which can be used to deploy translation and language models supported by CTranslate2 on Triton with both CPU and GPU capabilities.
 
 It supports ragged and dynamic batching and setting of (a subset of) CTranslate decoding parameters in the model config.
@@ -224,3 +227,9 @@ parameters [
   }
 ]
 ```
+
+  
+</details>
+
+
+
