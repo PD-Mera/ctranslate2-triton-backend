@@ -1,0 +1,31 @@
+backend: "ctranslate2" # must be ctranslate2
+name: "whisper" # must be the same as the model name
+max_batch_size: 4 # can be optimised based on available GPU memory
+input [
+  {
+    name: "FEATURES"
+    data_type: TYPE_FP32
+    dims: [ -1 ]
+    allow_ragged_batch: true # needed for dynamic batching
+  }
+]
+input [
+   {
+   name: "PROMPTS_IDS"
+    data_type: TYPE_INT32
+    dims: [ -1 ]
+    allow_ragged_batch: true # needed for dynamic batching
+  }
+]
+output [
+  {
+    name: "OUTPUT_IDS"
+    data_type: TYPE_FP32
+    dims: [ -1 ]
+  }
+]
+
+instance_group [{ kind: KIND_GPU, count: 1 }] # use KIND_CPU for CPU inference
+dynamic_batching {
+  max_queue_delay_microseconds: 5000 # can be tuned based on latency requirements
+}
