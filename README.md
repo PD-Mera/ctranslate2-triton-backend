@@ -30,7 +30,7 @@ rm -rf /var/lib/apt/lists/*
 git clone --recursive https://github.com/OpenNMT/CTranslate2.git
 cd CTranslate2
 mkdir build && cd build
-cmake .. -DWITH_CUDA=ON
+cmake .. -DWITH_CUDA=ON -DWITH_CUDNN=ON
 make -j4
 make install
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${PWD}
