@@ -14,6 +14,9 @@ docker run --gpus '"device=0,1"' -it --name dongtrinh.ctranslate -p8187:8000 -p8
 The scripts below will be executed in docker container
 
 ``` bash
+# To workspace
+cd /workspace
+
 ## Install cmake
 wget https://github.com/Kitware/CMake/releases/download/v3.26.0/cmake-3.26.0-linux-x86_64.tar.gz
 tar -xzvf cmake-3.26.0-linux-x86_64.tar.gz
