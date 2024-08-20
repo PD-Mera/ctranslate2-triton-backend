@@ -44,11 +44,11 @@ cd python
 pip install -r install_requirements.txt
 python3 setup.py bdist_wheel
 pip install dist/*.whl
-cd ..
+cd ../..
 
 ## Install rapidjson
-apt update
-apt install rapidjson-dev
+apt-get update
+apt-get install -y rapidjson-dev
 
 ## Install ctranslate2_triton_backend
 git clone https://github.com/PD-Mera/ctranslate2_triton_backend.git
@@ -60,10 +60,12 @@ cp ctranslate2_src/ctranslate2_whisper.cc src/ctranslate2.cc
 mkdir build && cd build
 export BACKEND_INSTALL_DIR=$(pwd)/install
 cmake .. -DCMAKE_BUILD_TYPE=Release -DTRITON_ENABLE_GPU=1 -DCMAKE_INSTALL_PREFIX=$BACKEND_INSTALL_DIR
+make -j4
 make install
-cd ../..
+cd ..
 
 ## Setup backend
+python3 -m pip install --upgrade pip
 pip install ctranslate2 transformers
 pip install torch==1.13.1+cpu -f https://download.pytorch.org/whl/torch_stable.html # enough to convert models
 
@@ -72,7 +74,7 @@ mkdir -p /workspace/deploy_models/whisper/
 ct2-transformers-converter --model openai/whisper-tiny --output_dir /workspace/deploy_models/whisper/1/model
 
 ## Copy config file
-cp ctranslate2_triton_backend/examples/model_repo/whisper/config.pbtxt /workspace/deploy_models/whisper/
+cp examples/model_repo/whisper/config.pbtxt /workspace/deploy_models/whisper/
 
 ## Deploy
 export MODEL_DIR=/workspace/deploy_models/
