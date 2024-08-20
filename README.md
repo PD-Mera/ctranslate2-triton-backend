@@ -37,7 +37,7 @@ cmake .. -DWITH_CUDA=ON -DWITH_CUDNN=ON
 make -j4
 make install
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(pwd)
-cd ../..
+cd ..
 
 ## Install pybind11
 cd python
